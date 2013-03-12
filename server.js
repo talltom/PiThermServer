@@ -26,6 +26,10 @@ var staticServer = new nodestatic.Server(".");
 // Setup database connection for logging
 var db = new sqlite3.Database('./piTemps.db');
 
+// Define sensor ID
+var SENSORID = "28-000003b0d431";
+
+
 // Write a single temperature record in JSON format to database table.
 function insertTemp(data){
    // data is a javascript object   
@@ -76,7 +80,7 @@ function readTemp(id,callback){
 // Create a wrapper function which we'll use specifically for logging
 function logTemp(interval){
       // Call the readTemp function with the insertTemp function as output to get initial reading
-      readTemp("28-000003b0d431",insertTemp);
+      readTemp(SENSORID,insertTemp);
       // Set the repeat interval (milliseconds). Third argument is passed as callback function to first (i.e. readTemp(insertTemp)).
       setInterval(readTemp, interval, insertTemp);
 };
@@ -137,7 +141,7 @@ var server = http.createServer(
       
       // Test to see if it's a request for current temperature   
       if (pathfile === '/temperature_now.json'){
-            readTemp("28-000003b0d431",function(data){
+            readTemp(SENSORID,function(data){
 			      response.writeHead(200, { "Content-type": "application/json" });		
 			      response.end(JSON.stringify(data), "ascii");
                });
