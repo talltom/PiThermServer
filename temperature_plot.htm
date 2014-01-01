@@ -13,7 +13,7 @@
 
          // Get data from Pi NodeJS server
         function getData() {
-            $.getJSON('./temperature_now.json', function(data) {
+            $.getJSON('./temperature_now.json?sensorid=0', function(data) {
                 //alert(data.unix_time);
                 // Create the series
                 var series = chart.series[0],
@@ -58,7 +58,7 @@
                     }
                 },
                 series: [{
-                    name: 'DS18B20 sensor (\u00B10.5\u00B0C)',
+                    name: 'Local sensor 0 - DS18B20 (\u00B10.5\u00B0C)',
                     data: []
                 }]
             });

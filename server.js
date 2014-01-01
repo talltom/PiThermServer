@@ -30,9 +30,9 @@ function insertTemp(err, data) {
         var d = data.temperature_record[0];
 
         // data is a javascript object
-        var statement = db.prepare("INSERT INTO temperature_records VALUES (?, ?)");
+        var statement = db.prepare("INSERT INTO temperature_records(sensor_id, unix_time, celsius) VALUES (?, ?, ?)");
         // Insert values into prepared statement
-        statement.run(d.unix_time, d.celsius);
+        statement.run(d.sensor_id, d.unix_time, d.celsius);
         // Execute the statement
         statement.finalize();
     }
@@ -44,6 +44,7 @@ function readTemp(callback) {
         // Add date/time to temperature
         var data = {
             temperature_record: [{
+                sensor_id: 0,
                 unix_time: Date.now()
             }]
         };
@@ -79,11 +80,11 @@ function logTemp(interval) {
 };
 
 // Get temperature records from database
-function selectTemp(num_records, start_date, callback) {
+function selectTemp(sensor_id, num_records, start_date, callback) {
     // - Num records is an SQL filter from latest record back trough time series, 
     // - start_date is the first date in the time-series required, 
     // - callback is the output function
-    var current_temp = db.all("SELECT * FROM (SELECT * FROM temperature_records WHERE unix_time > (strftime('%s',?)*1000) ORDER BY unix_time DESC LIMIT ?) ORDER BY unix_time;", start_date, num_records,
+    var current_temp = db.all("SELECT * FROM (SELECT * FROM temperature_records WHERE unix_time > (strftime('%s',?)*1000) and sensor_id = ? ORDER BY unix_time DESC LIMIT ?) ORDER BY unix_time;", start_date, sensor_id, num_records,
         function(err, rows) {
             if (err) {
                 response.writeHead(500, {
@@ -100,6 +101,23 @@ function selectTemp(num_records, start_date, callback) {
         });
 };
 
+function selectSensors(callback) {
+    var sql = "SELECT * FROM sensor_records ORDER BY sensor_id;";
+    db.all(sql, function(err, rows) {
+        if (err) {
+            console.log('Error reading sensor_records from database: ' + err);
+            response.writeHead(500, { "Content-type": "text/html" });
+            response.end(err + "\n");
+            return;
+        }
+        data = {
+            sensor_record: [rows]
+        };
+        callback(data);
+    });
+}
+
+
 // Setup node http server
 var server = http.createServer(
     // Our main server function
@@ -108,6 +126,7 @@ var server = http.createServer(
         var url = require('url').parse(request.url, true);
         var pathfile = url.pathname;
         var query = url.query;
+        var sensor_id = 0;
 
         // Test to see if it's a database query
         if (pathfile == '/temperature_query.json') {
@@ -123,10 +142,24 @@ var server = http.createServer(
             } else {
                 var start_date = '1970-01-01T00:00';
             }
+            if (query.sensorid) {
+                sensor_id = query.sensorid;
+            }
+
             // Send a message to console log
             console.log('Database query request from ' + request.connection.remoteAddress + ' for ' + num_obs + ' records from ' + start_date + '.');
             // call selectTemp function to get data from database
-            selectTemp(num_obs, start_date, function(data) {
+            selectTemp(sensor_id, num_obs, start_date, function(data) {
+                response.writeHead(200, {
+                    "Content-type": "application/json"
+                });
+                response.end(JSON.stringify(data), "ascii");
+            });
+            return;
+        }
+
+        if (pathfile == '/sensors.json') {
+            selectSensors(function(data) {
                 response.writeHead(200, {
                     "Content-type": "application/json"
                 });
@@ -159,7 +192,7 @@ var server = http.createServer(
         }
 
         if (pathfile == '/addtemp') {
-            if (query.temp) {
+            if (query.sensorid && query.temp) {
                 var unix_time;
 
                 if (query.unixtime) {
@@ -169,6 +202,7 @@ var server = http.createServer(
                 }
                 var data = {
                     temperature_record: [{
+                        sensor_id: query.sensorid,
                         unix_time: unix_time,
                         celsius: parseFloat(query.temp)
                     }]

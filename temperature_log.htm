@@ -10,22 +10,36 @@
     <script src="http://code.highcharts.com/highcharts.js" type="text/javascript"></script>
     <script type="text/javascript">
         var chart; // global chart variable
+
+        function plotData(chart, sensor_name, sensor_accuracy, data) {
+            var series = {
+                id: 'series',
+                name: sensor_name + ' (\u00B1' + sensor_accuracy + '\u00B0C)',
+                type: 'area',
+                data: []
+            };
+            var i = 0;
+            // Iterate JSON data series and add to plot
+            while (data[i]) {
+                series.data.push([data[i].unix_time, data[i].celsius]);
+                i++;
+            }
+            chart.addSeries(series);
+        }
+
+        function getTempData(sensor) {
+            $.getJSON('/temperature_query.json?sensorid=' + sensor.sensor_id, function(data) {
+                plotData(chart, sensor.name, sensor.celsius_accuracy, data.temperature_record[0]);
+            });
+        }
+
          // Get data from server in JSON format (query time series when sensor was outside).
         function getData() {
-            $.getJSON('/temperature_query.json?num_obs=-1&start_date=2013-01-23T16:00', function(data) {
-                var series = {
-                    id: 'series',
-                    name: 'DS18B20 sensor (\u00B10.5\u00B0C)',
-                    type: 'area',
-                    data: []
-                };
-                var i = 0;
-                // Iterate JSON data series and add to plot
-                while (data.temperature_record[0][i]) {
-                    series.data.push([data.temperature_record[0][i].unix_time, data.temperature_record[0][i].celsius]);
-                    i++;
+            $.getJSON('/sensors.json', function(data) {
+                for (var i in data.sensor_record[0]) {
+                    var sensor = data.sensor_record[0][i];
+                    getTempData(sensor);
                 }
-                chart.addSeries(series);
             });
         }
     </script>

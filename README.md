@@ -7,13 +7,18 @@ Description
 -----------
 A NodeJS server for the DS18B20 GPIO temperature sensor on the Raspberry Pi. The sensor is accessed using the w1-gpio and w1-therm kernel modules in the Raspbian distro. The server parses data from the sensor and returns the temperature and a Unix time-stamp in JSON format, this is then written to an SQLite database on the Pi. A simple front-end is included and served using node-static, which performs ajax calls to the server/database and plots temperature in real time or from a time-series, using the highcharts JavaScript library.
 
+Multiple sensors support
+------------------------
+Server supports multiple remote and one local sensor. Sensors configuration: id, name and accuracy are stored in database.
+Remote sensor readings are added with http GET call, e.g. http://localhost:8000/addtemp?sensorid=1&temp=12
+
 Files
 -----
 * load_gpio.sh - bash commands to load kernel modules
 * server.js - NodeJS server, returns temperature as JSON, logs to database and serves other static files
-* temperature_plot.htm - example client front-end showing live temperatures
+* temperature_plot.htm - example client front-end showing live temperatures from local sensor (no remote sensors support yet)
 * temperature_log.htm - example client front-end showing time-series from database records
-* build_database.sh - shell script to create database schema
+* build_database.sh - shell script to create database schema (also one local and two remote sensors are added)
 * build_example_database.sh - schell script to create example database with real world data from the Pi recorded in UK Jan-Feb 2013
 
 Dependencies
