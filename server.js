@@ -25,42 +25,48 @@ var staticServer = new nodestatic.Server(".");
 var db = new sqlite3.Database('./piTemps.db');
 
 // Write a single temperature record in JSON format to database table.
-function insertTemp(data) {
-    // data is a javascript object   
-    var statement = db.prepare("INSERT INTO temperature_records VALUES (?, ?)");
-    // Insert values into prepared statement
-    statement.run(data.temperature_record[0].unix_time, data.temperature_record[0].celsius);
-    // Execute the statement
-    statement.finalize();
+function insertTemp(err, data) {
+    if (!err) {
+        var d = data.temperature_record[0];
+
+        // data is a javascript object
+        var statement = db.prepare("INSERT INTO temperature_records VALUES (?, ?)");
+        // Insert values into prepared statement
+        statement.run(d.unix_time, d.celsius);
+        // Execute the statement
+        statement.finalize();
+    }
 }
 
 // Read current temperature from sensor
 function readTemp(callback) {
     fs.readFile('/sys/bus/w1/devices/28-00000400a88a/w1_slave', function(err, buffer) {
-        if (err) {
-            console.error(err);
-            process.exit(1);
-        }
-
-        // Read data from file (using fast node ASCII encoding).
-        var data = buffer.toString('ascii').split(" "); // Split by space
-
-        // Extract temperature from string and divide by 1000 to give celsius
-        var temp = parseFloat(data[data.length - 1].split("=")[1]) / 1000.0;
-
-        // Round to one decimal place
-        temp = Math.round(temp * 10) / 10;
-
         // Add date/time to temperature
         var data = {
             temperature_record: [{
-                unix_time: Date.now(),
-                celsius: temp
+                unix_time: Date.now()
             }]
         };
 
-        // Execute call back with data
-        callback(data);
+        if (err) {
+            console.error(err);
+            callback(1, data);
+        } else {
+            // Read data from file (using fast node ASCII encoding).
+            var data = buffer.toString('ascii').split(" "); // Split by space
+
+            // Extract temperature from string and divide by 1000 to give celsius
+            var temp = parseFloat(data[data.length - 1].split("=")[1]) / 1000.0;
+
+            // Round to one decimal place
+            temp = Math.round(temp * 10) / 10;
+
+            // Add date/time to temperature
+            data.celsius = temp;
+
+            // Execute call back with data
+            callback(0, data);
+        }
     });
 };
 
@@ -131,7 +137,7 @@ var server = http.createServer(
 
         // Test to see if it's a request for current temperature   
         if (pathfile == '/temperature_now.json') {
-            readTemp(function(data) {
+            readTemp(function(err, data) {
                 response.writeHead(200, {
                     "Content-type": "application/json"
                 });
