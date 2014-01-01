@@ -156,6 +156,34 @@ var server = http.createServer(
             // Optionally log favicon requests.
             //console.log('favicon requested');
             return;
+        }
+
+        if (pathfile == '/addtemp') {
+            if (query.temp) {
+                var unix_time;
+
+                if (query.unixtime) {
+                    unix_time = query.unixtime;
+                } else {
+                    unix_time = Date.now();
+                }
+                var data = {
+                    temperature_record: [{
+                        unix_time: unix_time,
+                        celsius: parseFloat(query.temp)
+                    }]
+                };
+                insertTemp(0, data);
+                response.end(JSON.stringify(data), "ascii");
+            } else {
+                //error
+                response.writeHead(404, {
+                    "Content-Type": "text/plain"
+                });
+                response.write("404 Not found");
+                response.end();
+            }
+            return;
         } else {
             // Print requested file to terminal
             console.log('Request from ' + request.connection.remoteAddress + ' for: ' + pathfile);
