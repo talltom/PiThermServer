@@ -185,3 +185,5 @@ console.log('Server is logging to database at ' + msecs + 'ms intervals');
 server.listen(8000);
 // Log message
 console.log('Server running at http://localhost:8000');
+console.log('Real time data plot: http://localhost:8000/temperature_plot.htm');
+console.log('Data log: http://localhost:8000/temperature_log.htm');
