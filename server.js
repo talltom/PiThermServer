@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 // server.js - NodeJS server for the PiThermServer project.
 
 /* 
@@ -24,6 +26,10 @@ var staticServer = new nodestatic.Server(".");
 // Setup database connection for logging
 var db = new sqlite3.Database('./piTemps.db');
 
+// Define sensor ID
+var SENSORID = "28-000003b0d431";
+
+
 // Write a single temperature record in JSON format to database table.
 function insertTemp(data){
    // data is a javascript object   
@@ -35,8 +41,8 @@ function insertTemp(data){
 }
 
 // Read current temperature from sensor
-function readTemp(callback){
-   fs.readFile('/sys/bus/w1/devices/28-00000400a88a/w1_slave', function(err, buffer)
+function readTemp(id,callback){
+   fs.readFile('/sys/bus/w1/devices/' + id + '/w1_slave', function(err, buffer)
 	{
       if (err){
          console.error(err);
@@ -44,30 +50,37 @@ function readTemp(callback){
       }
 
       // Read data from file (using fast node ASCII encoding).
-      var data = buffer.toString('ascii').split(" "); // Split by space
+      var data = buffer.toString('ascii').replace("\n"," ").split(" "); // Split by space
 
-      // Extract temperature from string and divide by 1000 to give celsius
-      var temp  = parseFloat(data[data.length-1].split("=")[1])/1000.0;
+      // Extract OK from Array
+      var ok_crc = (data[data.length-11] === "YES");
 
-      // Round to one decimal place
-      temp = Math.round(temp * 10) / 10;
+      if (ok_crc){
 
-      // Add date/time to temperature
-   	var data = {
+         // Extract temperature from Array and divide by 1000 to give celsius
+         var temp  = parseFloat(data[data.length-1].split("=")[1])/1000.0;
+
+         // Round to one decimal place
+         temp = Math.round(temp * 10) / 10;
+
+         // Add date/time to temperature
+         var data = {
             temperature_record:[{
             unix_time: Date.now(),
             celsius: temp
-            }]};
+            }]
+         };
 
-      // Execute call back with data
-      callback(data);
+         // Execute call back with data
+         callback(data);
+      }
    });
 };
 
 // Create a wrapper function which we'll use specifically for logging
 function logTemp(interval){
       // Call the readTemp function with the insertTemp function as output to get initial reading
-      readTemp(insertTemp);
+      readTemp(SENSORID,insertTemp);
       // Set the repeat interval (milliseconds). Third argument is passed as callback function to first (i.e. readTemp(insertTemp)).
       setInterval(readTemp, interval, insertTemp);
 };
@@ -101,7 +114,7 @@ var server = http.createServer(
       var query = url.query;
 
 		// Test to see if it's a database query
-		if (pathfile == '/temperature_query.json'){
+		if (pathfile === '/temperature_query.json'){
          // Test to see if number of observations was specified as url query
          if (query.num_obs){
             var num_obs = parseInt(query.num_obs);
@@ -127,8 +140,8 @@ var server = http.createServer(
       }
       
       // Test to see if it's a request for current temperature   
-      if (pathfile == '/temperature_now.json'){
-            readTemp(function(data){
+      if (pathfile === '/temperature_now.json'){
+            readTemp(SENSORID,function(data){
 			      response.writeHead(200, { "Content-type": "application/json" });		
 			      response.end(JSON.stringify(data), "ascii");
                });
@@ -136,7 +149,7 @@ var server = http.createServer(
       }
       
       // Handler for favicon.ico requests
-		if (pathfile == '/favicon.ico'){
+		if (pathfile === '/favicon.ico'){
 			response.writeHead(200, {'Content-Type': 'image/x-icon'});
 			response.end();
 
